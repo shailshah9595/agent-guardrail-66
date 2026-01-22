@@ -89,8 +89,13 @@ export type Database = {
           current_state: string | null
           env_id: string
           id: string
+          initial_state: string | null
+          last_tool_call_times: Json | null
           metadata: Json | null
+          policy_id: string | null
+          policy_version_locked: number | null
           session_id: string
+          tool_call_counts: Json | null
           tool_calls_history: string[] | null
           updated_at: string
         }
@@ -101,8 +106,13 @@ export type Database = {
           current_state?: string | null
           env_id: string
           id?: string
+          initial_state?: string | null
+          last_tool_call_times?: Json | null
           metadata?: Json | null
+          policy_id?: string | null
+          policy_version_locked?: number | null
           session_id: string
+          tool_call_counts?: Json | null
           tool_calls_history?: string[] | null
           updated_at?: string
         }
@@ -113,8 +123,13 @@ export type Database = {
           current_state?: string | null
           env_id?: string
           id?: string
+          initial_state?: string | null
+          last_tool_call_times?: Json | null
           metadata?: Json | null
+          policy_id?: string | null
+          policy_version_locked?: number | null
           session_id?: string
+          tool_call_counts?: Json | null
           tool_calls_history?: string[] | null
           updated_at?: string
         }
@@ -124,6 +139,13 @@ export type Database = {
             columns: ["env_id"]
             isOneToOne: false
             referencedRelation: "environments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "execution_sessions_policy_id_fkey"
+            columns: ["policy_id"]
+            isOneToOne: false
+            referencedRelation: "policies"
             referencedColumns: ["id"]
           },
         ]
@@ -270,6 +292,7 @@ export type Database = {
           counters_before: Json | null
           decision: Database["public"]["Enums"]["decision_type"]
           decision_reasons: string[]
+          error_code: string | null
           execution_session_id: string
           id: string
           payload_redacted: Json | null
@@ -285,6 +308,7 @@ export type Database = {
           counters_before?: Json | null
           decision: Database["public"]["Enums"]["decision_type"]
           decision_reasons?: string[]
+          error_code?: string | null
           execution_session_id: string
           id?: string
           payload_redacted?: Json | null
@@ -300,6 +324,7 @@ export type Database = {
           counters_before?: Json | null
           decision?: Database["public"]["Enums"]["decision_type"]
           decision_reasons?: string[]
+          error_code?: string | null
           execution_session_id?: string
           id?: string
           payload_redacted?: Json | null
