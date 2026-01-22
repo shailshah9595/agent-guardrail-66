@@ -10,6 +10,7 @@ import ProjectsPage from "./pages/ProjectsPage";
 import EnvironmentsPage from "./pages/EnvironmentsPage";
 import PoliciesPage from "./pages/PoliciesPage";
 import ExecutionsPage from "./pages/ExecutionsPage";
+import SDKPage from "./pages/SDKPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ const App = () => (
             <Route path="/environments" element={<EnvironmentsPage />} />
             <Route path="/policies" element={<PoliciesPage />} />
             <Route path="/executions" element={<ExecutionsPage />} />
+            <Route path="/sdk" element={<SDKPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
