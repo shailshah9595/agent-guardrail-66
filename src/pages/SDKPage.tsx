@@ -286,7 +286,7 @@ export default function SDKPage() {
       <div className="p-6 lg:p-8 space-y-8 max-w-5xl">
         <PageHeader
           title="SDK & Integration"
-          description="Type-safe, fail-closed SDKs for deterministic policy enforcement."
+          description="Type-safe, fail-closed SDKs for payment agents. Guard refunds, charges, and financial actions."
         />
 
         {/* SDK Contract - Critical */}
@@ -304,27 +304,27 @@ export default function SDKPage() {
             <ul className="space-y-3 text-sm">
               <li className="flex items-start gap-3">
                 <CheckCircle2 className="h-4 w-4 text-success mt-0.5 flex-shrink-0" />
-                <span>SDK <strong>MUST</strong> call /runtime-check before every tool execution</span>
+                <span>SDK <strong>MUST</strong> call /runtime-check before every payment action</span>
               </li>
               <li className="flex items-start gap-3">
                 <CheckCircle2 className="h-4 w-4 text-success mt-0.5 flex-shrink-0" />
-                <span>SDK <strong>MUST</strong> block locally if <code className="bg-muted px-1 rounded text-xs">allowed=false</code></span>
+                <span>SDK <strong>MUST</strong> block refunds/charges if <code className="bg-muted px-1 rounded text-xs">allowed=false</code></span>
               </li>
               <li className="flex items-start gap-3">
                 <CheckCircle2 className="h-4 w-4 text-success mt-0.5 flex-shrink-0" />
-                <span>SDK <strong>MUST</strong> surface <code className="bg-muted px-1 rounded text-xs">decisionReasons</code> to agent code</span>
+                <span>SDK <strong>MUST</strong> surface <code className="bg-muted px-1 rounded text-xs">decisionReasons</code> so agent can react</span>
               </li>
               <li className="flex items-start gap-3">
                 <CheckCircle2 className="h-4 w-4 text-success mt-0.5 flex-shrink-0" />
-                <span>SDK <strong>MUST</strong> fail closed if firewall is unavailable</span>
+                <span>SDK <strong>MUST</strong> fail closed if firewall unavailable—no payments without verification</span>
               </li>
               <li className="flex items-start gap-3">
                 <XCircle className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />
-                <span>SDK <strong>MUST NOT</strong> auto-retry blocked calls</span>
+                <span>SDK <strong>MUST NOT</strong> auto-retry blocked refunds or charges</span>
               </li>
               <li className="flex items-start gap-3">
                 <XCircle className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />
-                <span>SDK <strong>MUST NOT</strong> modify payload to bypass checks</span>
+                <span>SDK <strong>MUST NOT</strong> modify transaction payload to bypass checks</span>
               </li>
             </ul>
           </CardContent>
@@ -351,7 +351,7 @@ export default function SDKPage() {
                   ToolBlockedError
                 </h4>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Policy blocked execution. Contains all context needed for agent to react.
+                  Policy blocked the payment action. Contains context for agent to react: verify first, escalate, or inform user.
                 </p>
               </div>
               <div className="p-3 rounded-lg bg-warning/5 border border-warning/20">
@@ -360,7 +360,7 @@ export default function SDKPage() {
                   FirewallUnavailableError
                 </h4>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Firewall down. Execution blocked (fail-closed). Never allow execution on uncertainty.
+                  Firewall unreachable. All financial actions blocked (fail-closed). Never process payments on uncertainty.
                 </p>
               </div>
             </div>

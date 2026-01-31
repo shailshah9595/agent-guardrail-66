@@ -1,33 +1,49 @@
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Shield, Lock, Activity, Zap, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Shield, Lock, Activity, Zap, CheckCircle2, ArrowRight, CreditCard, AlertTriangle, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
+import { WhoThisIsFor } from '@/components/landing/WhoThisIsFor';
 
 const features = [
   {
     icon: Lock,
-    title: 'Deterministic Enforcement',
-    description: 'No LLM judges. Allow/deny decisions are based on explicit rules, preconditions, and counters.',
+    title: 'Prevent Unauthorized Refunds',
+    description: 'Block refund actions until identity verification is complete. No more fraudulent chargebacks from agent mistakes.',
   },
   {
-    icon: Shield,
-    title: 'Prevent Irreversible Actions',
-    description: 'Block dangerous operations like database writes, payments, or emails until proper verification.',
+    icon: CreditCard,
+    title: 'Guard Payment Actions',
+    description: 'Enforce approval workflows before charges. Prevent double-payments with session-level limits and state gates.',
   },
   {
     icon: Activity,
-    title: 'Complete Audit Logs',
-    description: 'Every tool call logged with decision reasons, state transitions, and replay context.',
+    title: 'Complete Audit Trail',
+    description: 'Every payment action logged with decision reasons, state transitions, and policy version for compliance.',
   },
 ];
 
 const useCases = [
-  'Require identity verification before processing refunds',
-  'Limit API calls per session to prevent runaway costs',
-  'Enforce sequential workflows: verify → approve → execute',
-  'Block destructive operations (delete_database) globally',
-  'Rate-limit external service calls with cooldown periods',
+  {
+    text: 'Block refund_payment until verify_identity succeeds',
+    category: 'Refund Safety',
+  },
+  {
+    text: 'Limit charge_customer to 1 call per session',
+    category: 'Double-Charge Prevention',
+  },
+  {
+    text: 'Require orderId and amount fields on all refunds',
+    category: 'Data Validation',
+  },
+  {
+    text: 'Deny email_customer more than once per session',
+    category: 'Communication Limits',
+  },
+  {
+    text: 'Block all delete_database and drop_table operations',
+    category: 'Destructive Action Block',
+  },
 ];
 
 export default function LandingPage() {
@@ -77,27 +93,27 @@ export default function LandingPage() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
               </span>
-              Runtime security for AI agents
+              Runtime security for financial agents
             </div>
             
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-6">
-              The runtime{' '}
-              <span className="gradient-text">control plane</span>
-              {' '}for AI agents
+              Stop unauthorized{' '}
+              <span className="gradient-text">payments and refunds</span>
+              {' '}before they happen
             </h1>
             
             <p className="text-lg text-muted-foreground mb-10 max-w-2xl mx-auto">
-              Enforce deterministic execution policies on tool calls and state transitions. 
-              Ship AI agents with confidence—no more hoping the LLM makes the right decision.
+              Deterministic policy enforcement for AI agents with financial authority. 
+              Block unsafe refunds, prevent double-charges, and maintain complete audit trails.
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Button size="lg" onClick={() => navigate('/quickstart')} className="gap-2 glow-primary">
-                Quickstart (2 min)
-                <ArrowRight className="h-4 w-4" />
+                <DollarSign className="h-4 w-4" />
+                See Refund Protection Demo
               </Button>
               <Button size="lg" variant="outline" onClick={handleGetStarted}>
-                {user ? 'Go to Dashboard' : 'Get Started'}
+                {user ? 'Go to Dashboard' : 'Get Started Free'}
               </Button>
             </div>
           </motion.div>
@@ -133,7 +149,7 @@ export default function LandingPage() {
           <div className="max-w-2xl mx-auto text-center mb-12">
             <h2 className="text-3xl font-bold mb-4">What you can enforce</h2>
             <p className="text-muted-foreground">
-              Define policies once, enforce everywhere. Every tool call passes through your firewall.
+              Define policies once, enforce on every payment action. No more hoping the agent makes the right call.
             </p>
           </div>
 
@@ -147,20 +163,36 @@ export default function LandingPage() {
                 className="flex items-start gap-3 p-4 rounded-lg bg-card/50 border border-border/50"
               >
                 <CheckCircle2 className="h-5 w-5 text-success mt-0.5 flex-shrink-0" />
-                <span>{useCase}</span>
+                <div>
+                  <span className="text-xs text-primary font-medium uppercase tracking-wide">{useCase.category}</span>
+                  <p className="text-foreground">{useCase.text}</p>
+                </div>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* CTA */}
+      {/* Who This Is For */}
       <section className="py-20 border-t border-border">
         <div className="container">
+          <div className="max-w-xl mx-auto">
+            <WhoThisIsFor />
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="py-20 border-t border-border bg-gradient-dark">
+        <div className="container">
           <div className="max-w-2xl mx-auto text-center">
-            <h2 className="text-3xl font-bold mb-4">Ready to secure your agents?</h2>
+            <div className="flex items-center justify-center gap-2 mb-4 text-warning">
+              <AlertTriangle className="h-5 w-5" />
+              <span className="text-sm font-medium">Stop agent-caused financial losses</span>
+            </div>
+            <h2 className="text-3xl font-bold mb-4">Ready to secure your payment agents?</h2>
             <p className="text-muted-foreground mb-8">
-              Create your first policy in minutes. No credit card required.
+              Create your first refund protection policy in under 2 minutes.
             </p>
             <Button size="lg" onClick={handleGetStarted} className="gap-2 glow-primary">
               Get Started Free
@@ -178,7 +210,7 @@ export default function LandingPage() {
             <span className="text-sm">Agent Firewall</span>
           </div>
           <p className="text-sm text-muted-foreground">
-            Runtime security for AI agents
+            Runtime security for financial AI agents
           </p>
         </div>
       </footer>

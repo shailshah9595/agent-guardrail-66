@@ -1,35 +1,59 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, ArrowRight, ArrowLeft, Copy, Check, CheckCircle2, XCircle, AlertTriangle, Play, Zap } from 'lucide-react';
+import { Shield, ArrowRight, ArrowLeft, Copy, Check, CheckCircle2, XCircle, AlertTriangle, Play, DollarSign, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import { WhoThisIsFor } from '@/components/landing/WhoThisIsFor';
 
+/**
+ * High-stakes demo scenario: Refund Protection
+ * 
+ * Story:
+ * 1. Agent tries to refund immediately → blocked
+ * 2. Agent verifies identity → allowed  
+ * 3. Agent retries refund → allowed
+ * 4. Agent tries second refund → blocked (limit reached)
+ */
 const DEMO_EXECUTION = [
   {
     tool: 'get_order_details',
     decision: 'allowed' as const,
-    reason: 'Read-only operation permitted',
-    state: 'initial → initial',
+    reason: 'Read operation permitted—retrieving order for customer',
+    state: 'initial',
+    narrative: 'Agent looks up order #12847 for customer complaint',
   },
   {
     tool: 'refund_payment',
     decision: 'blocked' as const,
-    reason: 'refund_payment requires verify_identity to be called first',
+    reason: 'Refund blocked: verify_identity must be called first',
     errorCode: 'REQUIRED_TOOLS_NOT_CALLED',
     state: 'initial',
+    narrative: 'Agent attempts $89.99 refund without verification',
+    highlight: true,
   },
   {
     tool: 'verify_identity',
     decision: 'allowed' as const,
-    reason: 'Identity verification completed',
+    reason: 'Identity verified via phone + email confirmation',
     state: 'initial → verified',
+    narrative: 'Agent completes customer identity verification',
   },
   {
     tool: 'refund_payment',
     decision: 'allowed' as const,
-    reason: 'All preconditions satisfied',
+    reason: 'All preconditions satisfied—refund processed',
     state: 'verified → refund_issued',
+    narrative: 'Agent successfully processes $89.99 refund',
+  },
+  {
+    tool: 'refund_payment',
+    decision: 'blocked' as const,
+    reason: 'Refund blocked: maximum 1 refund per session',
+    errorCode: 'MAX_CALLS_EXCEEDED',
+    state: 'refund_issued',
+    narrative: 'Agent attempts second refund—blocked by limit',
+    highlight: true,
   },
 ];
 
@@ -37,26 +61,27 @@ const SDK_EXAMPLE = `import { AgentFirewall, ToolBlockedError } from '@agent-fir
 
 const firewall = new AgentFirewall({
   apiKey: process.env.AGENT_FIREWALL_API_KEY,
-  baseUrl: 'https://your-project.supabase.co'
 });
 
-// Wrap your tool function
-const safeRefund = firewall.guard('session-123', 'agent-1', 'refund_payment', 
+// Wrap your payment tool
+const safeRefund = firewall.guard('session-123', 'support-agent', 'refund_payment', 
   async (payload) => {
     return await stripe.refunds.create(payload);
   }
 );
 
-// Execute - firewall checks BEFORE your code runs
 try {
-  const result = await safeRefund({ amount: 5000, orderId: 'ord_123' });
+  // Firewall checks BEFORE Stripe is called
+  const result = await safeRefund({ amount: 8999, orderId: 'ord_12847' });
   console.log('Refund processed:', result);
 } catch (error) {
   if (error instanceof ToolBlockedError) {
-    // Agent can react intelligently
-    console.log('Blocked:', error.errorCode);
-    console.log('Reasons:', error.decisionReasons);
-    // e.g., prompt user for identity verification
+    // Agent understands the block and can react
+    if (error.errorCode === 'REQUIRED_TOOLS_NOT_CALLED') {
+      await verifyCustomerIdentity(); // Then retry
+    } else if (error.errorCode === 'MAX_CALLS_EXCEEDED') {
+      await escalateToHuman('Refund limit reached');
+    }
   }
 }`;
 
@@ -95,7 +120,7 @@ export default function QuickstartPage() {
         return;
       }
       setDemoStep(index);
-      setTimeout(() => playNext(index + 1), 1500);
+      setTimeout(() => playNext(index + 1), 2000);
     };
     
     setTimeout(() => playNext(0), 500);
@@ -113,8 +138,9 @@ export default function QuickstartPage() {
             className="text-center"
           >
             <p className="text-xl text-muted-foreground mb-8">
-              Agents fail not because they reason badly, but because they{' '}
-              <span className="text-foreground font-medium">execute without constraints</span>.
+              AI agents with payment authority fail not because they reason badly,
+              but because they{' '}
+              <span className="text-foreground font-medium">execute financial actions without constraints</span>.
             </p>
           </motion.div>
           
@@ -127,9 +153,9 @@ export default function QuickstartPage() {
           >
             <div className="flex flex-col items-center gap-2">
               <div className="w-20 h-20 rounded-xl bg-secondary flex items-center justify-center">
-                <Zap className="h-8 w-8 text-primary" />
+                <CreditCard className="h-8 w-8 text-primary" />
               </div>
-              <span className="text-sm font-medium">Agent</span>
+              <span className="text-sm font-medium">Payment Agent</span>
             </div>
             
             <ArrowRight className="h-6 w-6 text-muted-foreground" />
@@ -145,9 +171,9 @@ export default function QuickstartPage() {
             
             <div className="flex flex-col items-center gap-2">
               <div className="w-20 h-20 rounded-xl bg-secondary flex items-center justify-center">
-                <span className="text-2xl">🔧</span>
+                <DollarSign className="h-8 w-8 text-success" />
               </div>
-              <span className="text-sm font-medium">Tool</span>
+              <span className="text-sm font-medium">Stripe / Payment</span>
             </div>
           </motion.div>
           
@@ -157,24 +183,24 @@ export default function QuickstartPage() {
             transition={{ delay: 0.4 }}
             className="text-center text-lg"
           >
-            Agent Firewall <span className="text-primary font-medium">blocks unsafe actions</span> before they happen.
+            Agent Firewall{' '}
+            <span className="text-primary font-medium">blocks unauthorized refunds and payments</span>{' '}
+            before they reach your payment processor.
           </motion.p>
         </div>
       ),
     },
     
-    // Step 1: See a Real Failure
+    // Step 1: See a Real Failure (High-Stakes Demo)
     {
-      title: 'See It Work',
+      title: 'Watch: Refund Protection',
       content: (
         <div className="space-y-6">
-          <p className="text-muted-foreground text-center">
-            Watch how the firewall enforces a simple rule:{' '}
-            <code className="text-xs bg-muted px-1.5 py-0.5 rounded">refund_payment</code>{' '}
-            requires{' '}
-            <code className="text-xs bg-muted px-1.5 py-0.5 rounded">verify_identity</code>{' '}
-            to be called first.
-          </p>
+          <div className="bg-warning/10 border border-warning/20 rounded-lg p-4 text-center">
+            <p className="text-sm text-warning font-medium">
+              💰 Real Scenario: Customer requests refund. Watch how the firewall prevents unauthorized financial actions.
+            </p>
+          </div>
           
           <div className="flex justify-center">
             <Button onClick={playDemo} disabled={demoPlaying} className="gap-2">
@@ -196,8 +222,13 @@ export default function QuickstartPage() {
                   item.decision === 'allowed' 
                     ? 'bg-success/5 border-success/20' 
                     : 'bg-destructive/5 border-destructive/20'
-                }`}
+                } ${item.highlight ? 'ring-2 ring-offset-2 ring-offset-background ring-destructive/50' : ''}`}
               >
+                {/* Narrative line */}
+                <p className="text-sm text-muted-foreground italic mb-2">
+                  "{item.narrative}"
+                </p>
+                
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-center gap-3">
                     {item.decision === 'allowed' ? (
@@ -213,13 +244,13 @@ export default function QuickstartPage() {
                             ? 'bg-success/10 text-success' 
                             : 'bg-destructive/10 text-destructive'
                         }`}>
-                          {item.decision}
+                          {item.decision === 'allowed' ? 'ALLOWED' : 'BLOCKED'}
                         </span>
                       </div>
                       <p className="text-sm text-muted-foreground mt-1">{item.reason}</p>
                     </div>
                   </div>
-                  <code className="text-xs text-muted-foreground">{item.state}</code>
+                  <code className="text-xs text-muted-foreground whitespace-nowrap">{item.state}</code>
                 </div>
                 {item.errorCode && (
                   <div className="mt-2 flex items-center gap-2">
@@ -232,14 +263,15 @@ export default function QuickstartPage() {
           </div>
           
           {demoStep === DEMO_EXECUTION.length - 1 && (
-            <motion.p
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="text-center text-sm text-muted-foreground"
+              className="bg-success/10 border border-success/20 rounded-lg p-4 text-center"
             >
-              The agent tried to refund without verification → blocked. 
-              After verification → allowed.
-            </motion.p>
+              <p className="text-sm text-success font-medium">
+                ✓ Result: 1 legitimate refund processed. 1 unauthorized refund blocked. 1 second refund attempt blocked.
+              </p>
+            </motion.div>
           )}
         </div>
       ),
@@ -247,11 +279,11 @@ export default function QuickstartPage() {
     
     // Step 2: Copy-Paste Integration
     {
-      title: 'Integrate',
+      title: 'Integrate in 15 Lines',
       content: (
         <div className="space-y-6">
           <p className="text-muted-foreground text-center">
-            Wrap your tool functions with the firewall. 15 lines of code.
+            Wrap your payment tools. The firewall blocks unsafe calls before they reach Stripe.
           </p>
           
           <Card className="relative">
@@ -265,14 +297,14 @@ export default function QuickstartPage() {
           
           <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
             <h4 className="font-medium mb-2 flex items-center gap-2">
-              <Zap className="h-4 w-4 text-primary" />
-              Run Locally
+              <DollarSign className="h-4 w-4 text-primary" />
+              Get Started
             </h4>
             <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
               <li>Create a project in Agent Firewall</li>
+              <li>Add the <strong>Refund Safety</strong> policy template</li>
               <li>Copy your API key from Settings → API Keys</li>
-              <li>Define a policy requiring <code className="text-xs bg-muted px-1 rounded">verify_identity</code> before <code className="text-xs bg-muted px-1 rounded">refund_payment</code></li>
-              <li>Run the code above</li>
+              <li>Wrap your payment tools with the SDK</li>
             </ol>
           </div>
           
@@ -284,6 +316,11 @@ export default function QuickstartPage() {
             <Button variant="outline" onClick={() => navigate('/sdk')}>
               Full SDK Docs
             </Button>
+          </div>
+          
+          {/* Who this is for - compact version */}
+          <div className="pt-4">
+            <WhoThisIsFor />
           </div>
         </div>
       ),
@@ -367,7 +404,7 @@ export default function QuickstartPage() {
             }}
             className="gap-2"
           >
-            {step === steps.length - 1 ? 'Get Started' : 'Next'}
+            {step === steps.length - 1 ? 'Create Project' : 'Next'}
             <ArrowRight className="h-4 w-4" />
           </Button>
         </div>

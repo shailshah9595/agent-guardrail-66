@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { FileCode2, Plus, Loader2, Play, Save, Upload, AlertTriangle, Info } from 'lucide-react';
+import { FileCode2, Plus, Loader2, Play, Save, Upload, AlertTriangle, Info, CreditCard } from 'lucide-react';
 import Editor from '@monaco-editor/react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -14,8 +14,11 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PolicyExplainer, PolicyWarning, WhyNotIfElse } from '@/components/policies/PolicyExplainer';
+import { PolicyTemplateSelector } from '@/components/policies/PolicyTemplateSelector';
+import { PublishConfirmDialog } from '@/components/policies/PublishConfirmDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { defaultPolicySpec, PolicySpec } from '@/lib/supabase';
+import { PolicyTemplate } from '@/lib/policy-templates';
 import { useToast } from '@/hooks/use-toast';
 
 interface Policy {
@@ -66,10 +69,11 @@ export default function PoliciesPage() {
   const [newPolicyName, setNewPolicyName] = useState('');
   const [selectedEnvId, setSelectedEnvId] = useState('');
   const [creating, setCreating] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<PolicyTemplate | null>(null);
 
   // Simulation state
-  const [simToolName, setSimToolName] = useState('');
-  const [simPayload, setSimPayload] = useState('{}');
+  const [simToolName, setSimToolName] = useState('refund_payment');
+  const [simPayload, setSimPayload] = useState('{"orderId": "ord_12345", "amount": 8999}');
   const [simState, setSimState] = useState('initial');
   const [simPrevCalls, setSimPrevCalls] = useState('');
   const [simResult, setSimResult] = useState<SimulationResult | null>(null);
@@ -234,23 +238,32 @@ export default function PoliciesPage() {
     if (!newPolicyName.trim() || !selectedEnvId) return;
     setCreating(true);
 
+    // Use template spec if selected, otherwise default
+    const policySpec = selectedTemplate ? selectedTemplate.spec : defaultPolicySpec;
+
     try {
       const { data, error } = await supabase
         .from('policies')
         .insert([{
           env_id: selectedEnvId,
           name: newPolicyName.trim(),
-          policy_spec: defaultPolicySpec as any,
+          policy_spec: policySpec as any,
         }])
         .select()
         .single();
 
       if (error) throw error;
 
-      toast({ title: 'Policy created' });
+      toast({ 
+        title: 'Policy created',
+        description: selectedTemplate 
+          ? `Created from "${selectedTemplate.name}" template` 
+          : 'Created with default configuration',
+      });
       setCreateDialogOpen(false);
       setNewPolicyName('');
       setSelectedEnvId('');
+      setSelectedTemplate(null);
       loadData();
     } catch (error: any) {
       toast({
@@ -371,7 +384,7 @@ export default function PoliciesPage() {
       <div className="p-6 lg:p-8 space-y-6">
         <PageHeader
           title="Policies"
-          description="Define deterministic execution policies for your AI agents."
+          description="Define enforcement rules for payment agents. Block unauthorized refunds, prevent double-charges, require verification."
           actions={
             <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
               <DialogTrigger asChild>
@@ -382,9 +395,12 @@ export default function PoliciesPage() {
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Create Policy</DialogTitle>
+                  <DialogTitle className="flex items-center gap-2">
+                    <CreditCard className="h-5 w-5 text-primary" />
+                    Create Payment Policy
+                  </DialogTitle>
                   <DialogDescription>
-                    Create a new policy for an environment.
+                    Create a new policy to protect financial actions in an environment.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 mt-4">
@@ -407,11 +423,36 @@ export default function PoliciesPage() {
                     <Label htmlFor="policyName">Policy Name</Label>
                     <Input
                       id="policyName"
-                      placeholder="Main Policy"
+                      placeholder="Refund Protection Policy"
                       value={newPolicyName}
                       onChange={(e) => setNewPolicyName(e.target.value)}
                     />
                   </div>
+                  
+                  {/* Template Selector */}
+                  <div className="space-y-2">
+                    <Label>Start from Template (Optional)</Label>
+                    <PolicyTemplateSelector 
+                      onSelect={(template) => {
+                        setSelectedTemplate(template);
+                        if (!newPolicyName.trim()) {
+                          setNewPolicyName(template.name);
+                        }
+                      }}
+                      trigger={
+                        <Button variant="outline" className="w-full justify-start gap-2">
+                          <CreditCard className="h-4 w-4" />
+                          {selectedTemplate ? selectedTemplate.name : 'Choose a template...'}
+                        </Button>
+                      }
+                    />
+                    {selectedTemplate && (
+                      <p className="text-xs text-muted-foreground">
+                        {selectedTemplate.description}
+                      </p>
+                    )}
+                  </div>
+                  
                   <Button onClick={createPolicy} disabled={creating || !newPolicyName.trim() || !selectedEnvId} className="w-full">
                     {creating && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                     Create Policy
@@ -489,10 +530,13 @@ export default function PoliciesPage() {
                         {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                         Save Draft
                       </Button>
-                      <Button onClick={publishPolicy} disabled={publishing}>
-                        {publishing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
-                        Publish
-                      </Button>
+                      <PublishConfirmDialog
+                        policyName={selectedPolicy.name}
+                        environmentName={selectedPolicy.environment?.name || 'Unknown'}
+                        currentVersion={selectedPolicy.version}
+                        onConfirm={publishPolicy}
+                        disabled={publishing}
+                      />
                     </div>
                   </div>
 
@@ -500,7 +544,7 @@ export default function PoliciesPage() {
                   {selectedPolicy.status === 'published' && (
                     <div className="flex items-center gap-2 p-3 rounded-lg bg-warning/10 border border-warning/20 text-warning text-sm">
                       <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-                      <span>This policy is live. Changes after publish will affect production agents immediately.</span>
+                      <span>This policy protects live payment agents. Changes after publish affect financial actions immediately.</span>
                     </div>
                   )}
 

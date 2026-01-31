@@ -251,9 +251,9 @@ export default function ExecutionsPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Tool Call Timeline</CardTitle>
+              <CardTitle>Payment Action Timeline</CardTitle>
               <CardDescription>
-                Each tool call reads as a sentence. A non-expert should understand failures in under 30 seconds.
+                Every refund, charge, and verification action with decision context. Understand failures in under 30 seconds.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -288,15 +288,15 @@ export default function ExecutionsPage() {
     <AppLayout>
       <div className="p-6 lg:p-8 space-y-6">
         <PageHeader
-          title="Executions"
-          description="View audit logs of agent executions and tool calls. Every decision is recorded for compliance."
+          title="Execution Audit Log"
+          description="Complete audit trail of every payment action. Track refunds, charges, and financial decisions for compliance."
         />
 
         {sessions.length === 0 ? (
           <EmptyState
             icon={Activity}
-            title="No executions yet"
-            description="Execution logs will appear here when your agents make tool calls through the firewall."
+            title="No financial actions yet"
+            description="Audit logs will appear here when your payment agents make refund, charge, or other financial calls through the firewall."
           />
         ) : (
           <Card>

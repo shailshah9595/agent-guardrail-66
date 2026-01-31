@@ -72,12 +72,12 @@ export function PublishConfirmDialog({
             </p>
             
             <div className="bg-warning/10 border border-warning/20 rounded-lg p-3 text-sm">
-              <p className="font-medium text-warning mb-2">⚠️ This action affects production agents</p>
+              <p className="font-medium text-warning mb-2">⚠️ This affects live payment agents</p>
               <ul className="list-disc list-inside space-y-1 text-muted-foreground">
                 <li>New sessions will use version {currentVersion + 1}</li>
-                <li>Existing sessions will continue using their locked version</li>
-                <li>This version will be immutably recorded for audit</li>
-                <li>Policy changes take effect immediately for new tool calls</li>
+                <li>Active refund and charge protections update immediately</li>
+                <li>This version is immutably recorded for audit compliance</li>
+                <li>Changes affect all financial actions from new agent sessions</li>
               </ul>
             </div>
             
@@ -91,7 +91,7 @@ export function PublishConfirmDialog({
                 htmlFor="confirm-publish" 
                 className="text-sm font-normal cursor-pointer"
               >
-                I understand this will affect production agents
+                I understand this will affect live payment protections
               </Label>
             </div>
           </AlertDialogDescription>
