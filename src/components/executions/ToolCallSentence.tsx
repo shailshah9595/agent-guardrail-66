@@ -25,71 +25,105 @@ interface ToolCallSentenceProps {
 }
 
 /**
- * Renders a tool call as a human-readable sentence
- * "Agent attempted X → Blocked because Y"
+ * Renders a tool call as a human-readable sentence with financial context
+ * "Agent attempted refund → Blocked because identity not verified"
  */
 export function ToolCallSentence({ log, isLast = false }: ToolCallSentenceProps) {
-  // Build human-readable sentence
+  // Map tool names to financial-specific descriptions
+  const getToolDescription = (toolName: string): string => {
+    const financialTools: Record<string, string> = {
+      'refund_payment': 'refund action',
+      'charge_customer': 'payment charge',
+      'verify_identity': 'identity verification',
+      'email_customer': 'customer email',
+      'send_receipt': 'receipt delivery',
+      'update_account_status': 'account modification',
+      'delete_database': 'database deletion',
+      'bulk_delete': 'bulk deletion',
+    };
+    return financialTools[toolName] || toolName;
+  };
+
+  // Build human-readable sentence with financial terminology
   const buildSentence = () => {
     const tool = log.tool_name;
+    const toolDesc = getToolDescription(tool);
     
     if (log.decision === 'allowed') {
       if (log.state_before !== log.state_after) {
         return (
           <>
-            Agent called <code className="text-primary">{tool}</code>{' '}
+            Agent executed <code className="text-primary">{toolDesc}</code>{' '}
             <ArrowRight className="inline h-3 w-3 mx-1" />
             <span className="text-success">Allowed</span>, 
-            state changed to <code className="text-primary">{log.state_after}</code>
+            workflow state: <code className="text-primary">{log.state_after}</code>
           </>
         );
       }
       return (
         <>
-          Agent called <code className="text-primary">{tool}</code>{' '}
+          Agent executed <code className="text-primary">{toolDesc}</code>{' '}
           <ArrowRight className="inline h-3 w-3 mx-1" />
           <span className="text-success">Allowed</span>
         </>
       );
     }
     
-    // Blocked - find the most important reason
+    // Blocked - find the most important reason with financial context
     const mainReason = getMainBlockReason(log.decision_reasons, log.error_code);
     return (
       <>
-        Agent attempted <code className="text-primary">{tool}</code>{' '}
+        Agent attempted <code className="text-primary">{toolDesc}</code>{' '}
         <ArrowRight className="inline h-3 w-3 mx-1" />
-        <span className="text-destructive">Blocked</span> because {mainReason}
+        <span className="text-destructive">Blocked</span>—{mainReason}
       </>
     );
   };
 
-  // Get human-readable main reason
+  // Get human-readable main reason with financial context
   const getMainBlockReason = (reasons: string[], errorCode: string | null): string => {
     if (reasons.length === 0) {
-      return errorCode || 'policy denied execution';
+      return errorCode || 'action blocked by policy';
     }
     
-    // Return the first reason, cleaned up
+    // Return the first reason with financial-specific language
     const reason = reasons[0];
     
-    // Make common patterns more readable
-    if (reason.includes('REQUIRED_TOOLS_NOT_CALLED')) {
+    // Financial-context translations
+    if (reason.includes('REQUIRED_TOOLS_NOT_CALLED') || reason.includes('requires')) {
+      if (reason.includes('verify_identity')) {
+        return 'identity verification required first';
+      }
+      if (reason.includes('confirm_payment')) {
+        return 'payment confirmation required first';
+      }
       const match = reason.match(/requires? (.+?) to be called/i);
-      if (match) return `${match[1]} was not called first`;
+      if (match) return `${match[1]} must complete first`;
+      return 'prerequisite action not completed';
     }
     
     if (reason.includes('REQUIRED_STATE_NOT_MET')) {
+      if (reason.includes('verified')) {
+        return 'customer not yet verified';
+      }
+      if (reason.includes('approved')) {
+        return 'payment not yet approved';
+      }
       const match = reason.match(/requires? state "(.+?)"/i);
-      if (match) return `current state is not "${match[1]}"`;
+      if (match) return `workflow not in "${match[1]}" state`;
+      return 'workflow state requirement not met';
     }
     
     if (reason.includes('MAX_CALLS_EXCEEDED')) {
-      return 'maximum call limit was reached';
+      return 'session limit reached—prevented duplicate action';
     }
     
     if (reason.includes('COOLDOWN_ACTIVE')) {
-      return 'cooldown period has not elapsed';
+      return 'rate limit active—too soon since last call';
+    }
+    
+    if (reason.includes('REQUIRED_FIELD_MISSING')) {
+      return 'missing required transaction data';
     }
     
     return reason.toLowerCase();
