@@ -11,6 +11,7 @@ import EnvironmentsPage from "./pages/EnvironmentsPage";
 import PoliciesPage from "./pages/PoliciesPage";
 import ExecutionsPage from "./pages/ExecutionsPage";
 import SDKPage from "./pages/SDKPage";
+import QuickstartPage from "./pages/QuickstartPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<LandingPage />} />
+            <Route path="/quickstart" element={<QuickstartPage />} />
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/projects" element={<ProjectsPage />} />
             <Route path="/environments" element={<EnvironmentsPage />} />

@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Activity, Loader2, ArrowLeft, Clock, CheckCircle2, XCircle, Timer } from 'lucide-react';
+import { Activity, Loader2, ArrowLeft, CheckCircle2, XCircle, Timer } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ExecutionReplay } from '@/components/executions/ExecutionReplay';
+import { ToolCallSentence } from '@/components/executions/ToolCallSentence';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -253,7 +253,7 @@ export default function ExecutionsPage() {
             <CardHeader>
               <CardTitle>Tool Call Timeline</CardTitle>
               <CardDescription>
-                Chronological log of all tool calls. Each decision is immutably recorded for audit.
+                Each tool call reads as a sentence. A non-expert should understand failures in under 30 seconds.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -266,83 +266,13 @@ export default function ExecutionsPage() {
                   No tool calls recorded yet.
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="ml-2">
                   {toolCalls.map((log, index) => (
-                    <div
+                    <ToolCallSentence
                       key={log.id}
-                      className={`relative pl-6 pb-4 ${
-                        index < toolCalls.length - 1 ? 'border-l border-border ml-2' : ''
-                      }`}
-                    >
-                      <div className={`absolute -left-2 top-0 flex h-4 w-4 items-center justify-center rounded-full ${
-                        log.decision === 'allowed' ? 'bg-success' : 'bg-destructive'
-                      }`}>
-                        {log.decision === 'allowed' ? (
-                          <CheckCircle2 className="h-3 w-3 text-success-foreground" />
-                        ) : (
-                          <XCircle className="h-3 w-3 text-destructive-foreground" />
-                        )}
-                      </div>
-                      
-                      <div className="glass-card p-4 ml-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <code className="text-sm font-mono font-medium">{log.tool_name}</code>
-                            <StatusBadge status={log.decision} />
-                            {log.error_code && (
-                              <code className="text-xs text-destructive bg-destructive/10 px-1 rounded">
-                                {log.error_code}
-                              </code>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-3">
-                            {log.execution_duration_ms !== null && (
-                              <span className={`text-xs font-mono ${
-                                log.execution_duration_ms < 5 ? 'text-success' : 
-                                log.execution_duration_ms < 20 ? 'text-warning' : 'text-destructive'
-                              }`}>
-                                {log.execution_duration_ms}ms
-                              </span>
-                            )}
-                            <span className="text-xs text-muted-foreground flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              {new Date(log.timestamp).toLocaleTimeString()}
-                            </span>
-                          </div>
-                        </div>
-                        
-                        {log.decision_reasons.length > 0 && (
-                          <div className="mb-2">
-                            <ul className="text-sm space-y-0.5">
-                              {log.decision_reasons.map((reason, i) => (
-                                <li key={i} className="text-muted-foreground">• {reason}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-
-                        {log.state_before !== log.state_after && (
-                          <div className="text-xs text-muted-foreground mb-2">
-                            State: <code>{log.state_before}</code> → <code>{log.state_after}</code>
-                          </div>
-                        )}
-
-                        {log.policy_hash && (
-                          <div className="text-xs text-muted-foreground mb-2">
-                            Policy hash: <code>{log.policy_hash.substring(0, 16)}...</code>
-                          </div>
-                        )}
-
-                        <details className="mt-2">
-                          <summary className="text-xs text-muted-foreground cursor-pointer">
-                            View payload (redacted)
-                          </summary>
-                          <pre className="mt-2 p-2 bg-muted rounded text-xs overflow-x-auto">
-                            {JSON.stringify(log.payload_redacted, null, 2)}
-                          </pre>
-                        </details>
-                      </div>
-                    </div>
+                      log={log}
+                      isLast={index === toolCalls.length - 1}
+                    />
                   ))}
                 </div>
               )}

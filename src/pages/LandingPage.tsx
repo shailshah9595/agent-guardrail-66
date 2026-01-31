@@ -92,12 +92,12 @@ export default function LandingPage() {
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Button size="lg" onClick={handleGetStarted} className="gap-2 glow-primary">
-                Start Building
+              <Button size="lg" onClick={() => navigate('/quickstart')} className="gap-2 glow-primary">
+                Quickstart (2 min)
                 <ArrowRight className="h-4 w-4" />
               </Button>
-              <Button size="lg" variant="outline" onClick={() => navigate('/sdk')}>
-                View SDK Docs
+              <Button size="lg" variant="outline" onClick={handleGetStarted}>
+                {user ? 'Go to Dashboard' : 'Get Started'}
               </Button>
             </div>
           </motion.div>
