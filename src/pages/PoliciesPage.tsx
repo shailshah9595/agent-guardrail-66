@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { FileCode2, Plus, Loader2, Play, Save, Upload } from 'lucide-react';
+import { FileCode2, Plus, Loader2, Play, Save, Upload, AlertTriangle, Info } from 'lucide-react';
 import Editor from '@monaco-editor/react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PolicyExplainer, PolicyWarning, WhyNotIfElse } from '@/components/policies/PolicyExplainer';
 import { supabase } from '@/integrations/supabase/client';
 import { defaultPolicySpec, PolicySpec } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
@@ -495,10 +496,19 @@ export default function PoliciesPage() {
                     </div>
                   </div>
 
+                  {/* Production warning */}
+                  {selectedPolicy.status === 'published' && (
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-warning/10 border border-warning/20 text-warning text-sm">
+                      <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                      <span>This policy is live. Changes after publish will affect production agents immediately.</span>
+                    </div>
+                  )}
+
                   <Tabs defaultValue="editor" className="space-y-4">
                     <TabsList>
                       <TabsTrigger value="editor">Policy Editor</TabsTrigger>
                       <TabsTrigger value="simulate">Simulate</TabsTrigger>
+                      <TabsTrigger value="help">Understanding Policies</TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="editor" className="space-y-4">
@@ -526,6 +536,9 @@ export default function PoliciesPage() {
                           }}
                         />
                       </div>
+                      
+                      {/* Runtime warning */}
+                      <PolicyWarning type="runtime" />
                     </TabsContent>
 
                     <TabsContent value="simulate" className="space-y-4">
@@ -533,13 +546,15 @@ export default function PoliciesPage() {
                         <CardHeader>
                           <CardTitle>Simulate Tool Call</CardTitle>
                           <CardDescription>
-                            Test your policy without saving logs.
+                            Test your policy without saving logs. See exactly what would happen at runtime.
                           </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
                           <div className="grid md:grid-cols-2 gap-4">
                             <div className="space-y-2">
-                              <Label>Tool Name</Label>
+                              <div className="flex items-center gap-2">
+                                <Label>Tool Name</Label>
+                              </div>
                               <Input
                                 placeholder="refund_payment"
                                 value={simToolName}
@@ -547,7 +562,10 @@ export default function PoliciesPage() {
                               />
                             </div>
                             <div className="space-y-2">
-                              <Label>Current State</Label>
+                              <div className="flex items-center gap-2">
+                                <Label>Current State</Label>
+                                <PolicyExplainer term="state" />
+                              </div>
                               <Input
                                 placeholder="initial"
                                 value={simState}
@@ -564,7 +582,10 @@ export default function PoliciesPage() {
                             />
                           </div>
                           <div className="space-y-2">
-                            <Label>Previous Tool Calls (comma-separated)</Label>
+                            <div className="flex items-center gap-2">
+                              <Label>Previous Tool Calls (comma-separated)</Label>
+                              <PolicyExplainer term="sequential" />
+                            </div>
                             <Input
                               placeholder="verify_identity, check_balance"
                               value={simPrevCalls}
@@ -597,6 +618,99 @@ export default function PoliciesPage() {
                               </ul>
                             </div>
                           )}
+                        </CardContent>
+                      </Card>
+                    </TabsContent>
+
+                    <TabsContent value="help" className="space-y-4">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <Info className="h-5 w-5" />
+                            Understanding Policies
+                          </CardTitle>
+                          <CardDescription>
+                            Everything you need to understand policy rules - without reading docs.
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                          {/* State Machine */}
+                          <div className="space-y-2">
+                            <h4 className="font-medium flex items-center gap-2">
+                              State Machine
+                              <PolicyExplainer term="state" />
+                            </h4>
+                            <p className="text-sm text-muted-foreground">
+                              States track where an agent is in a workflow. Define states like <code className="text-xs bg-muted px-1 rounded">initial</code>, <code className="text-xs bg-muted px-1 rounded">verified</code>, <code className="text-xs bg-muted px-1 rounded">completed</code>. 
+                              Tools can require a specific state and trigger transitions.
+                            </p>
+                          </div>
+
+                          {/* Sequential Rules */}
+                          <div className="space-y-2">
+                            <h4 className="font-medium flex items-center gap-2">
+                              Sequential Rules (requirePreviousToolCalls)
+                              <PolicyExplainer term="sequential" />
+                            </h4>
+                            <p className="text-sm text-muted-foreground">
+                              Require specific tools to be called before this one. Example: <code className="text-xs bg-muted px-1 rounded">refund_payment</code> requires <code className="text-xs bg-muted px-1 rounded">verify_identity</code> to be called first.
+                            </p>
+                          </div>
+
+                          {/* Side Effects */}
+                          <div className="space-y-2">
+                            <h4 className="font-medium flex items-center gap-2">
+                              Side Effects (actionType)
+                              <PolicyExplainer term="side_effect" />
+                            </h4>
+                            <p className="text-sm text-muted-foreground">
+                              Mark actions that change external state: sending emails, processing payments, modifying databases. 
+                              Side effects are never auto-approved and require explicit allow rules.
+                            </p>
+                            <PolicyWarning type="irreversible" />
+                          </div>
+
+                          {/* Rate Limiting */}
+                          <div className="space-y-2">
+                            <h4 className="font-medium flex items-center gap-2">
+                              Rate Limiting
+                            </h4>
+                            <div className="grid sm:grid-cols-2 gap-4 text-sm">
+                              <div className="p-3 bg-muted/50 rounded-lg">
+                                <div className="flex items-center gap-2 font-medium mb-1">
+                                  maxCallsPerSession
+                                  <PolicyExplainer term="maxCalls" />
+                                </div>
+                                <p className="text-muted-foreground text-xs">
+                                  Maximum times this tool can be called per session.
+                                </p>
+                              </div>
+                              <div className="p-3 bg-muted/50 rounded-lg">
+                                <div className="flex items-center gap-2 font-medium mb-1">
+                                  cooldownMs
+                                  <PolicyExplainer term="cooldown" />
+                                </div>
+                                <p className="text-muted-foreground text-xs">
+                                  Minimum time (ms) between calls to this tool.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Required Fields */}
+                          <div className="space-y-2">
+                            <h4 className="font-medium flex items-center gap-2">
+                              Field Constraints
+                              <PolicyExplainer term="requireFields" />
+                            </h4>
+                            <p className="text-sm text-muted-foreground">
+                              Use <code className="text-xs bg-muted px-1 rounded">requireFields</code> to mandate payload fields. 
+                              Use <code className="text-xs bg-muted px-1 rounded">denyIfFieldsPresent</code> to block if certain fields exist.
+                            </p>
+                          </div>
+
+                          {/* Why not if/else */}
+                          <WhyNotIfElse />
                         </CardContent>
                       </Card>
                     </TabsContent>
