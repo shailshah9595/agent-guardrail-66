@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Activity, Loader2, ArrowLeft, Clock, CheckCircle2, XCircle } from 'lucide-react';
+import { Activity, Loader2, ArrowLeft, Clock, CheckCircle2, XCircle, Timer } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -8,6 +8,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ExecutionReplay } from '@/components/executions/ExecutionReplay';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -16,11 +17,13 @@ interface ExecutionSession {
   agent_id: string;
   session_id: string;
   current_state: string;
+  policy_id: string | null;
+  policy_version_locked: number | null;
   metadata: Record<string, unknown>;
   created_at: string;
   updated_at: string;
   environment?: { name: string; project: { name: string } };
-  _toolCallStats?: { allowed: number; blocked: number };
+  _toolCallStats?: { allowed: number; blocked: number; avgLatencyMs: number };
 }
 
 interface ToolCallLog {
@@ -31,11 +34,14 @@ interface ToolCallLog {
   payload_redacted: Record<string, unknown>;
   decision: 'allowed' | 'blocked';
   decision_reasons: string[];
+  error_code: string | null;
   policy_version_used: number | null;
+  policy_hash: string | null;
   state_before: string | null;
   state_after: string | null;
   counters_before: Record<string, number>;
   counters_after: Record<string, number>;
+  execution_duration_ms: number | null;
 }
 
 export default function ExecutionsPage() {
@@ -46,6 +52,7 @@ export default function ExecutionsPage() {
   const [sessions, setSessions] = useState<ExecutionSession[]>([]);
   const [selectedSession, setSelectedSession] = useState<ExecutionSession | null>(null);
   const [toolCalls, setToolCalls] = useState<ToolCallLog[]>([]);
+  const [policySpec, setPolicySpec] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
 
@@ -59,6 +66,7 @@ export default function ExecutionsPage() {
     } else {
       setSelectedSession(null);
       setToolCalls([]);
+      setPolicySpec(null);
     }
   }, [sessionId]);
 
@@ -67,7 +75,7 @@ export default function ExecutionsPage() {
       const { data, error } = await supabase
         .from('execution_sessions')
         .select(`
-          id, agent_id, session_id, current_state, metadata, created_at, updated_at,
+          id, agent_id, session_id, current_state, policy_id, policy_version_locked, metadata, created_at, updated_at,
           environment:environments(name, project:projects(name))
         `)
         .order('updated_at', { ascending: false })
@@ -75,21 +83,26 @@ export default function ExecutionsPage() {
 
       if (error) throw error;
 
-      // Load tool call stats for each session
       const sessionsWithStats = await Promise.all(
         (data || []).map(async (session) => {
           const { data: logs } = await supabase
             .from('tool_call_logs')
-            .select('decision')
+            .select('decision, execution_duration_ms')
             .eq('execution_session_id', session.id);
 
           const allowed = (logs || []).filter(l => l.decision === 'allowed').length;
           const blocked = (logs || []).filter(l => l.decision === 'blocked').length;
+          const durations = (logs || [])
+            .filter(l => l.execution_duration_ms !== null)
+            .map(l => l.execution_duration_ms as number);
+          const avgLatencyMs = durations.length > 0 
+            ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length)
+            : 0;
 
           return {
             ...session,
             environment: Array.isArray(session.environment) ? session.environment[0] : session.environment,
-            _toolCallStats: { allowed, blocked },
+            _toolCallStats: { allowed, blocked, avgLatencyMs },
           };
         })
       );
@@ -109,11 +122,10 @@ export default function ExecutionsPage() {
   async function loadSessionDetail(id: string) {
     setDetailLoading(true);
     try {
-      // Load session
       const { data: session, error: sessionError } = await supabase
         .from('execution_sessions')
         .select(`
-          id, agent_id, session_id, current_state, metadata, created_at, updated_at,
+          id, agent_id, session_id, current_state, policy_id, policy_version_locked, metadata, created_at, updated_at,
           environment:environments(name, project:projects(name))
         `)
         .eq('id', id)
@@ -135,6 +147,17 @@ export default function ExecutionsPage() {
 
       if (logsError) throw logsError;
       setToolCalls((logs || []) as ToolCallLog[]);
+
+      // Load policy spec for replay
+      if (session.policy_id) {
+        const { data: policy } = await supabase
+          .from('policies')
+          .select('policy_spec')
+          .eq('id', session.policy_id)
+          .single();
+        
+        setPolicySpec(policy?.policy_spec as Record<string, unknown> || null);
+      }
     } catch (error: any) {
       toast({
         title: 'Failed to load session detail',
@@ -159,22 +182,33 @@ export default function ExecutionsPage() {
 
   // Session detail view
   if (sessionId && selectedSession) {
+    const avgLatency = toolCalls.length > 0
+      ? Math.round(toolCalls.filter(t => t.execution_duration_ms).reduce((a, b) => a + (b.execution_duration_ms || 0), 0) / toolCalls.filter(t => t.execution_duration_ms).length)
+      : 0;
+
     return (
       <AppLayout>
         <div className="p-6 lg:p-8 space-y-6">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/executions')}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div>
-              <h1 className="text-2xl font-bold">Execution Detail</h1>
-              <p className="text-muted-foreground">
-                {selectedSession.environment?.project?.name} / {selectedSession.environment?.name}
-              </p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button variant="ghost" size="icon" onClick={() => navigate('/executions')}>
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <div>
+                <h1 className="text-2xl font-bold">Execution Detail</h1>
+                <p className="text-muted-foreground">
+                  {selectedSession.environment?.project?.name} / {selectedSession.environment?.name}
+                </p>
+              </div>
             </div>
+            <ExecutionReplay
+              sessionId={selectedSession.id}
+              toolCalls={toolCalls}
+              policySpec={policySpec}
+            />
           </div>
 
-          <div className="grid md:grid-cols-3 gap-4">
+          <div className="grid md:grid-cols-4 gap-4">
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">Agent ID</CardTitle>
@@ -188,15 +222,29 @@ export default function ExecutionsPage() {
                 <CardTitle className="text-sm font-medium text-muted-foreground">Session ID</CardTitle>
               </CardHeader>
               <CardContent>
-                <code className="text-sm font-mono">{selectedSession.session_id}</code>
+                <code className="text-sm font-mono">{selectedSession.session_id.substring(0, 16)}...</code>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Current State</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Policy Version</CardTitle>
               </CardHeader>
               <CardContent>
-                <code className="text-sm font-mono">{selectedSession.current_state}</code>
+                <code className="text-sm font-mono">v{selectedSession.policy_version_locked || '?'}</code>
+                <span className="text-xs text-muted-foreground ml-2">(locked at session start)</span>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Avg Latency</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-2">
+                  <Timer className="h-4 w-4 text-muted-foreground" />
+                  <span className={`font-mono ${avgLatency < 5 ? 'text-success' : avgLatency < 20 ? 'text-warning' : 'text-destructive'}`}>
+                    {avgLatency}ms
+                  </span>
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -205,7 +253,7 @@ export default function ExecutionsPage() {
             <CardHeader>
               <CardTitle>Tool Call Timeline</CardTitle>
               <CardDescription>
-                Chronological log of all tool calls in this session.
+                Chronological log of all tool calls. Each decision is immutably recorded for audit.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -241,16 +289,30 @@ export default function ExecutionsPage() {
                           <div className="flex items-center gap-2">
                             <code className="text-sm font-mono font-medium">{log.tool_name}</code>
                             <StatusBadge status={log.decision} />
+                            {log.error_code && (
+                              <code className="text-xs text-destructive bg-destructive/10 px-1 rounded">
+                                {log.error_code}
+                              </code>
+                            )}
                           </div>
-                          <span className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {new Date(log.timestamp).toLocaleTimeString()}
-                          </span>
+                          <div className="flex items-center gap-3">
+                            {log.execution_duration_ms !== null && (
+                              <span className={`text-xs font-mono ${
+                                log.execution_duration_ms < 5 ? 'text-success' : 
+                                log.execution_duration_ms < 20 ? 'text-warning' : 'text-destructive'
+                              }`}>
+                                {log.execution_duration_ms}ms
+                              </span>
+                            )}
+                            <span className="text-xs text-muted-foreground flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {new Date(log.timestamp).toLocaleTimeString()}
+                            </span>
+                          </div>
                         </div>
                         
                         {log.decision_reasons.length > 0 && (
                           <div className="mb-2">
-                            <p className="text-xs text-muted-foreground mb-1">Reasons:</p>
                             <ul className="text-sm space-y-0.5">
                               {log.decision_reasons.map((reason, i) => (
                                 <li key={i} className="text-muted-foreground">• {reason}</li>
@@ -260,14 +322,20 @@ export default function ExecutionsPage() {
                         )}
 
                         {log.state_before !== log.state_after && (
-                          <div className="text-xs text-muted-foreground">
+                          <div className="text-xs text-muted-foreground mb-2">
                             State: <code>{log.state_before}</code> → <code>{log.state_after}</code>
+                          </div>
+                        )}
+
+                        {log.policy_hash && (
+                          <div className="text-xs text-muted-foreground mb-2">
+                            Policy hash: <code>{log.policy_hash.substring(0, 16)}...</code>
                           </div>
                         )}
 
                         <details className="mt-2">
                           <summary className="text-xs text-muted-foreground cursor-pointer">
-                            View payload
+                            View payload (redacted)
                           </summary>
                           <pre className="mt-2 p-2 bg-muted rounded text-xs overflow-x-auto">
                             {JSON.stringify(log.payload_redacted, null, 2)}
@@ -291,7 +359,7 @@ export default function ExecutionsPage() {
       <div className="p-6 lg:p-8 space-y-6">
         <PageHeader
           title="Executions"
-          description="View audit logs of agent executions and tool calls."
+          description="View audit logs of agent executions and tool calls. Every decision is recorded for compliance."
         />
 
         {sessions.length === 0 ? (
@@ -309,8 +377,9 @@ export default function ExecutionsPage() {
                     <TableHead>Project / Environment</TableHead>
                     <TableHead>Agent ID</TableHead>
                     <TableHead>Session ID</TableHead>
-                    <TableHead>State</TableHead>
+                    <TableHead>Policy</TableHead>
                     <TableHead>Decisions</TableHead>
+                    <TableHead>Avg Latency</TableHead>
                     <TableHead>Last Activity</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -322,9 +391,7 @@ export default function ExecutionsPage() {
                       onClick={() => navigate(`/executions/${session.id}`)}
                     >
                       <TableCell>
-                        <span className="font-medium">
-                          {session.environment?.project?.name}
-                        </span>
+                        <span className="font-medium">{session.environment?.project?.name}</span>
                         <span className="text-muted-foreground"> / {session.environment?.name}</span>
                       </TableCell>
                       <TableCell>
@@ -334,7 +401,7 @@ export default function ExecutionsPage() {
                         <code className="text-sm font-mono">{session.session_id.substring(0, 8)}...</code>
                       </TableCell>
                       <TableCell>
-                        <code className="text-sm">{session.current_state}</code>
+                        <code className="text-sm">v{session.policy_version_locked || '?'}</code>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -347,6 +414,14 @@ export default function ExecutionsPage() {
                             {session._toolCallStats?.blocked || 0}
                           </span>
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className={`font-mono text-sm ${
+                          (session._toolCallStats?.avgLatencyMs || 0) < 5 ? 'text-success' : 
+                          (session._toolCallStats?.avgLatencyMs || 0) < 20 ? 'text-warning' : 'text-muted-foreground'
+                        }`}>
+                          {session._toolCallStats?.avgLatencyMs || 0}ms
+                        </span>
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {new Date(session.updated_at).toLocaleString()}

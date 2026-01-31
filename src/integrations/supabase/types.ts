@@ -14,6 +14,35 @@ export type Database = {
   }
   public: {
     Tables: {
+      api_key_rate_limits: {
+        Row: {
+          api_key_id: string
+          id: string
+          request_count: number
+          window_start: string
+        }
+        Insert: {
+          api_key_id: string
+          id?: string
+          request_count?: number
+          window_start?: string
+        }
+        Update: {
+          api_key_id?: string
+          id?: string
+          request_count?: number
+          window_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_key_rate_limits_api_key_id_fkey"
+            columns: ["api_key_id"]
+            isOneToOne: false
+            referencedRelation: "api_keys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       api_keys: {
         Row: {
           created_at: string
@@ -174,6 +203,7 @@ export type Database = {
           env_id: string
           id: string
           name: string
+          policy_hash: string | null
           policy_spec: Json
           published_at: string | null
           status: Database["public"]["Enums"]["policy_status"]
@@ -185,6 +215,7 @@ export type Database = {
           env_id: string
           id?: string
           name: string
+          policy_hash?: string | null
           policy_spec?: Json
           published_at?: string | null
           status?: Database["public"]["Enums"]["policy_status"]
@@ -196,6 +227,7 @@ export type Database = {
           env_id?: string
           id?: string
           name?: string
+          policy_hash?: string | null
           policy_spec?: Json
           published_at?: string | null
           status?: Database["public"]["Enums"]["policy_status"]
@@ -208,6 +240,44 @@ export type Database = {
             columns: ["env_id"]
             isOneToOne: false
             referencedRelation: "environments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      policy_versions: {
+        Row: {
+          id: string
+          policy_hash: string
+          policy_id: string
+          policy_spec: Json
+          published_at: string
+          published_by: string | null
+          version: number
+        }
+        Insert: {
+          id?: string
+          policy_hash: string
+          policy_id: string
+          policy_spec: Json
+          published_at?: string
+          published_by?: string | null
+          version: number
+        }
+        Update: {
+          id?: string
+          policy_hash?: string
+          policy_id?: string
+          policy_spec?: Json
+          published_at?: string
+          published_by?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "policy_versions_policy_id_fkey"
+            columns: ["policy_id"]
+            isOneToOne: false
+            referencedRelation: "policies"
             referencedColumns: ["id"]
           },
         ]
@@ -293,9 +363,11 @@ export type Database = {
           decision: Database["public"]["Enums"]["decision_type"]
           decision_reasons: string[]
           error_code: string | null
+          execution_duration_ms: number | null
           execution_session_id: string
           id: string
           payload_redacted: Json | null
+          policy_hash: string | null
           policy_version_used: number | null
           state_after: string | null
           state_before: string | null
@@ -309,9 +381,11 @@ export type Database = {
           decision: Database["public"]["Enums"]["decision_type"]
           decision_reasons?: string[]
           error_code?: string | null
+          execution_duration_ms?: number | null
           execution_session_id: string
           id?: string
           payload_redacted?: Json | null
+          policy_hash?: string | null
           policy_version_used?: number | null
           state_after?: string | null
           state_before?: string | null
@@ -325,9 +399,11 @@ export type Database = {
           decision?: Database["public"]["Enums"]["decision_type"]
           decision_reasons?: string[]
           error_code?: string | null
+          execution_duration_ms?: number | null
           execution_session_id?: string
           id?: string
           payload_redacted?: Json | null
+          policy_hash?: string | null
           policy_version_used?: number | null
           state_after?: string | null
           state_before?: string | null
