@@ -29,6 +29,7 @@ const App = () => (
             <Route path="/environments" element={<EnvironmentsPage />} />
             <Route path="/policies" element={<PoliciesPage />} />
             <Route path="/executions" element={<ExecutionsPage />} />
+            <Route path="/executions/:sessionId" element={<ExecutionsPage />} />
             <Route path="/sdk" element={<SDKPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
