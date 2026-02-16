@@ -4,6 +4,7 @@ import { Plus, FolderKanban, Loader2 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { RunDemoButton } from '@/components/demo/RunDemoButton';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -138,13 +139,15 @@ export default function ProjectsPage() {
           title="Projects"
           description="Manage your agent firewall projects and environments."
           actions={
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  New Project
-                </Button>
-              </DialogTrigger>
+            <div className="flex items-center gap-3">
+              <RunDemoButton />
+              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    New Project
+                  </Button>
+                </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Create Project</DialogTitle>
@@ -177,7 +180,8 @@ export default function ProjectsPage() {
                   </Button>
                 </div>
               </DialogContent>
-            </Dialog>
+              </Dialog>
+            </div>
           }
         />
 

@@ -8,6 +8,7 @@ import {
   FileCode2,
   Activity,
   Code2,
+  BookOpen,
   LogOut,
   Menu,
   X,
@@ -26,7 +27,8 @@ const navigation = [
   { name: 'Environments', href: '/environments', icon: Server },
   { name: 'Policies', href: '/policies', icon: FileCode2 },
   { name: 'Executions', href: '/executions', icon: Activity },
-  { name: 'SDK / Quickstart', href: '/sdk', icon: Code2 },
+  { name: 'SDK', href: '/sdk', icon: Code2 },
+  { name: 'Docs', href: '/docs', icon: BookOpen },
 ];
 
 export function AppLayout({ children }: AppLayoutProps) {
