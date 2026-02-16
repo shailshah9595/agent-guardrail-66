@@ -16,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PolicyExplainer, PolicyWarning, WhyNotIfElse } from '@/components/policies/PolicyExplainer';
 import { PolicyTemplateSelector } from '@/components/policies/PolicyTemplateSelector';
 import { PublishConfirmDialog } from '@/components/policies/PublishConfirmDialog';
+import { PolicyHistory } from '@/components/policies/PolicyHistory';
 import { supabase } from '@/integrations/supabase/client';
 import { defaultPolicySpec, PolicySpec } from '@/lib/supabase';
 import { PolicyTemplate } from '@/lib/policy-templates';
@@ -552,6 +553,7 @@ export default function PoliciesPage() {
                     <TabsList>
                       <TabsTrigger value="editor">Policy Editor</TabsTrigger>
                       <TabsTrigger value="simulate">Simulate</TabsTrigger>
+                      <TabsTrigger value="history">Version History</TabsTrigger>
                       <TabsTrigger value="help">Understanding Policies</TabsTrigger>
                     </TabsList>
 
@@ -664,6 +666,13 @@ export default function PoliciesPage() {
                           )}
                         </CardContent>
                       </Card>
+                    </TabsContent>
+
+                    <TabsContent value="history">
+                      <PolicyHistory
+                        policyId={selectedPolicy.id}
+                        currentVersion={selectedPolicy.version}
+                      />
                     </TabsContent>
 
                     <TabsContent value="help" className="space-y-4">

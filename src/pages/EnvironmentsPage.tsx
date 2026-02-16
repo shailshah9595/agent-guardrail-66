@@ -134,7 +134,7 @@ export default function EnvironmentsPage() {
     }
   }
 
-  function generateApiKey(): { key: string; prefix: string; hash: string } {
+  async function generateApiKey(): Promise<{ key: string; prefix: string; hash: string }> {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     const prefix = 'af_';
     let secret = '';
@@ -142,9 +142,13 @@ export default function EnvironmentsPage() {
       secret += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     const fullKey = prefix + secret;
-    // Simple hash for demo - in production use crypto.subtle
-    const hash = btoa(fullKey).split('').reverse().join('');
-    return { key: fullKey, prefix: prefix + secret.substring(0, 4), hash };
+    // SHA-256 hash matching the runtime-check edge function
+    const encoder = new TextEncoder();
+    const data = encoder.encode(fullKey);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return { key: fullKey, prefix: prefix + secret.substring(0, 5), hash };
   }
 
   async function createApiKey() {
@@ -152,7 +156,7 @@ export default function EnvironmentsPage() {
     setCreating(true);
 
     try {
-      const { key, prefix, hash } = generateApiKey();
+      const { key, prefix, hash } = await generateApiKey();
 
       const { error } = await supabase
         .from('api_keys')
